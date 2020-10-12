@@ -1,4 +1,5 @@
 add_executable(aio aio.c)
+add_executable(firmata_aio firmata_aio.c)
 add_executable(gpio gpio.c)
 add_executable(firmata_gpio firmata_gpio.c)
 add_executable(gpio_advanced gpio_advanced.c)
@@ -19,6 +20,7 @@ include_directories(${PROJECT_SOURCE_DIR}/api)
 include_directories(${PROJECT_SOURCE_DIR}/api/mraa)
 
 target_link_libraries(aio mraa)
+target_link_libraries(firmata_aio mraa)
 target_link_libraries(gpio mraa)
 target_link_libraries(firmata_gpio mraa)
 target_link_libraries(gpio_advanced mraa)
