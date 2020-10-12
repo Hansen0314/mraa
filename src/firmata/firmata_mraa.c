@@ -263,7 +263,7 @@ mraa_firmata_i2c_write(mraa_i2c_context dev, const uint8_t* data, int bytesToWri
 {
     // buffer needs 5 bytes for firmata, and 2 bytes for every byte of data
     int buffer_size = (bytesToWrite*2) + 5;
-    char* buffer = calloc(buffer_size, 0);
+    char* buffer = calloc(buffer_size , 2 * sizeof(char));
     if (buffer == NULL) {
         return MRAA_ERROR_NO_RESOURCES;
     }
