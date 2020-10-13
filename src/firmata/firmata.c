@@ -240,6 +240,18 @@ firmata_endParse(t_firmata* firmata)
                 i = i+2;
             }
             if (pthread_spin_unlock(&firmata->lock) != 0) syslog(LOG_ERR, "firmata: Fatal spinlock deadlock");
+        } else if (firmata->parse_buff[1] == FIRMATA_EXTENDED_ANALOG && firmata->parse_count == 6) {
+            int analog_ch = firmata->parse_buff[2];
+            firmata->parse_buff[5] = firmata->parse_buff[5] & 0X01;
+            int analog_val = firmata->parse_buff[3] | firmata->parse_buff[4] << 7 | firmata->parse_buff[5] << 14;;
+            for (pin = 0; pin < 128; pin++) {
+                if (firmata->pins[pin].analog_channel == analog_ch) {
+                    if (pthread_spin_lock(&firmata->lock) != 0) return;
+                    firmata->pins[pin].value = analog_val;
+                    if (pthread_spin_unlock(&firmata->lock) != 0) syslog(LOG_ERR, "firmata: Fatal spinlock deadlock");
+                    return;
+                }
+            }            
         } else {
             if (firmata->devs != NULL) {
                 struct _firmata* devs = firmata->devs[0];
@@ -317,17 +329,15 @@ firmata_analogWrite(t_firmata* firmata, int pin, int value)
 }
 
 int
-firmata_analogRead(t_firmata *firmata, int pin)
+firmata_analogRead(t_firmata *firmata, int pin ,int value)
 {
     int res;
-    int value = 1;
     char buff[2];
     buff[0] = FIRMATA_REPORT_ANALOG | pin;
     buff[1] = value;
     res = mraa_uart_write(firmata->uart, buff, 2);
     return res;
 }
-
 int
 firmata_digitalWrite(t_firmata* firmata, int pin, int value)
 {

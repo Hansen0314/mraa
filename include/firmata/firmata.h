@@ -58,6 +58,7 @@
 
 // extended command set using sysex (0-127/0x00-0x7F)
 /* 0x00-0x0F reserved for custom commands */
+#define FIRMATA_EXTENDED_ANALOG 0x6F    // analog write (PWM, Servo, etc) to any pin
 #define FIRMATA_SERVO_CONFIG 0x70       // set max angle, minPulse, maxPulse, freq
 #define FIRMATA_STRING 0x71             // a string message with 14-bits per char
 #define FIRMATA_REPORT_FIRMWARE 0x79    // report name and version of the firmware
@@ -93,7 +94,7 @@ int firmata_askFirmware(t_firmata* firmata);
 int firmata_pinMode(t_firmata* firmata, int pin, int mode);
 int firmata_digitalWrite(t_firmata* firmata, int pin, int value);
 int firmata_analogWrite(t_firmata* firmata, int pin, int value);
-int firmata_analogRead(t_firmata* firmata, int pin);
+int firmata_analogRead(t_firmata* firmata, int pin,int value);
 int firmata_pull(t_firmata* firmata);
 void firmata_parse(t_firmata* firmata, const uint8_t* buf, int len);
 void firmata_endParse(t_firmata* firmata);

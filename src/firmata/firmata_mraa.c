@@ -338,7 +338,7 @@ mraa_firmata_i2c_stop(mraa_i2c_context dev)
 }
 
 static int
-mraa_firmata_aio_read(mraa_aio_context dev)
+mraa_firmata_aio_read_replace(mraa_aio_context dev)
 {
     // careful, whilst you need to enable '0' for A0 you then need to read 14
     // in t_firmata because well that makes sense doesn't it...
@@ -357,9 +357,18 @@ mraa_firmata_aio_init_internal_replace(mraa_aio_context dev, int aio)
     // firmata considers A0 pin0 as well as actual pin0 :/
     firmata_pinMode(firmata_dev, aio, MODE_ANALOG);
     // register for updates on that ADC channel
-    firmata_analogRead(firmata_dev, aio);
+    firmata_analogRead(firmata_dev, aio, 1);
 
     return MRAA_SUCCESS;
+}
+
+static mraa_result_t
+mraa_firmata_aio_close_replace(mraa_aio_context dev)
+{   
+    int aio = dev->channel - 14;
+    firmata_analogRead(firmata_dev, aio, 0);
+    free(dev);
+    return MRAA_SUCCESS;    
 }
 
 static mraa_result_t
@@ -553,7 +562,6 @@ mraa_firmata_plat_init(const char* uart_dev)
     while (!firmata_dev->isReady && --retry) {
        firmata_pull(firmata_dev);
     }
-
     if (!retry) {
         syslog(LOG_ERR, "firmata: Failed to find a valid Firmata board on %s", uart_dev);
         firmata_close(firmata_dev);
@@ -570,13 +578,16 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->gpio_count = 14;
     b->aio_count = 6;
     b->adc_supported = 10;
+    // b->adc_supported = 16;
+    // b->adc_raw = 16;
+
     b->phy_pin_count = 20;
     b->i2c_bus_count = 1;
     b->def_i2c_bus = 0;
     b->i2c_bus[0].bus_id = 0;
     b->pwm_min_period = 2048;
     b->pwm_max_period = 2048;
-
+    
     b->pins = (mraa_pininfo_t*) calloc(b->phy_pin_count, sizeof(mraa_pininfo_t));
     if (b->pins == NULL) {
         free(b);
@@ -668,7 +679,8 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->gpio_close_replace = &mraa_firmata_gpio_close_replace;
 
     b->adv_func->aio_init_internal_replace = &mraa_firmata_aio_init_internal_replace;
-    b->adv_func->aio_read_replace = &mraa_firmata_aio_read;
+    b->adv_func->aio_read_replace = &mraa_firmata_aio_read_replace;
+    b->adv_func->aio_close_replace = &mraa_firmata_aio_close_replace;
 
     b->adv_func->pwm_init_internal_replace = &mraa_firmata_pwm_init_internal_replace;
     b->adv_func->pwm_write_replace = &mraa_firmata_pwm_write_replace;
@@ -689,7 +701,6 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->i2c_write_byte_data_replace = &mraa_firmata_i2c_write_byte_data;
     b->adv_func->i2c_write_word_data_replace = &mraa_firmata_i2c_write_word_data;
     b->adv_func->i2c_stop_replace = &mraa_firmata_i2c_stop;
-
     return b;
 }
 
