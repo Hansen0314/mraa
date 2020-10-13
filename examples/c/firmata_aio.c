@@ -72,7 +72,7 @@ main()
 
 err_exit:
     mraa_result_print(status);
-
+    
     /* deinitialize mraa for the platform (not needed most of the times) */
     mraa_deinit();
 

@@ -353,7 +353,7 @@ mraa_firmata_aio_init_internal_replace(mraa_aio_context dev, int aio)
 {
     // set the channel, since we override internal it's never set
     // offset by 14 because it makes total logical sense.
-    dev->channel = aio + 14;
+    dev->channel = aio + TOTAL_GPIO_PINS;
     // firmata considers A0 pin0 as well as actual pin0 :/
     firmata_pinMode(firmata_dev, aio, MODE_ANALOG);
     // register for updates on that ADC channel
@@ -365,8 +365,9 @@ mraa_firmata_aio_init_internal_replace(mraa_aio_context dev, int aio)
 static mraa_result_t
 mraa_firmata_aio_close_replace(mraa_aio_context dev)
 {   
-    int aio = dev->channel - 14;
-    firmata_analogRead(firmata_dev, aio, 0);
+    // total 6 analog
+    for (int aio = 0 ; aio < TOTAL_ANALOG_PINS ; aio ++)
+        firmata_analogRead(firmata_dev, aio, 0);
     free(dev);
     return MRAA_SUCCESS;    
 }
@@ -575,14 +576,14 @@ mraa_firmata_plat_init(const char* uart_dev)
     // do we support 2.5? Or are we more 2.3?
     // or should we return the flashed sketch name?
     b->platform_version = firmata_dev->firmware;
-    b->gpio_count = 14;
-    b->aio_count = 6;
+    b->gpio_count = TOTAL_GPIO_PINS;
+    b->aio_count = TOTAL_ANALOG_PINS;
     b->adc_supported = 10;
     // b->adc_supported = 16;
     // b->adc_raw = 16;
 
-    b->phy_pin_count = 20;
-    b->i2c_bus_count = 1;
+    b->phy_pin_count = TOTAL_ANALOG_PINS + TOTAL_GPIO_PINS;
+    b->i2c_bus_count = TOTAL_I2C_BUS;
     b->def_i2c_bus = 0;
     b->i2c_bus[0].bus_id = 0;
     b->pwm_min_period = 2048;

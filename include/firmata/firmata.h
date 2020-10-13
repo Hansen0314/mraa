@@ -67,6 +67,11 @@
 
 #define FIRMATA_MSG_LEN 1024
 
+#define TOTAL_ANALOG_PINS       6
+#define TOTAL_GPIO_PINS         14
+#define TOTAL_I2C_BUS           2
+#define TOTAL_PINS              25 // 14 digital + 6 analog + 2 i2c + 3 spi
+
 typedef struct s_pin {
     uint8_t mode;
     uint8_t analog_channel;
