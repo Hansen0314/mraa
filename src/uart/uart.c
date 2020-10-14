@@ -158,55 +158,60 @@ mraa_uart_init_internal(mraa_adv_func_t* func_table)
     dev->index = -1;
     dev->fd = -1;
     dev->advance_func = func_table;
-
     return dev;
 }
 
 mraa_uart_context
 mraa_uart_init(int index)
 {
-    if (plat == NULL) {
+    mraa_board_t* board = plat;
+    if (board == NULL) {
         syslog(LOG_ERR, "uart%i: init: platform not initialised", index);
         return NULL;
     }
 
     if (mraa_is_sub_platform_id(index)) {
-        syslog(LOG_NOTICE, "uart%i: init: Using sub platform is not supported", index);
-        return NULL;
+        syslog(LOG_NOTICE, "uart: Using sub platform");
+        board = board->sub_platform;
+        if (board == NULL) {
+            syslog(LOG_ERR, "uart: Sub platform Not Initialised");
+            return NULL;
+        }
+        index = mraa_get_sub_platform_index(index);
     }
-
-    if (plat->adv_func != NULL && plat->adv_func->uart_init_pre != NULL) {
-        if (plat->adv_func->uart_init_pre(index) != MRAA_SUCCESS) {
+    
+    if (board->adv_func != NULL && board->adv_func->uart_init_pre != NULL) {
+        if (board->adv_func->uart_init_pre(index) != MRAA_SUCCESS) {
             syslog(LOG_ERR, "uart%i: init: failure in pre-init platform hook", index);
             return NULL;
         }
     }
 
-    if (plat->uart_dev_count == 0) {
+    if (board->uart_dev_count == 0) {
         syslog(LOG_ERR, "uart%i: init: platform has no UARTs defined", index);
         return NULL;
     }
 
-    if (plat->uart_dev_count <= index) {
-        syslog(LOG_ERR, "uart%i: init: platform has only %i uarts", index, plat->uart_dev_count);
+    if (board->uart_dev_count <= index) {
+        syslog(LOG_ERR, "uart%i: init: platform has only %i uarts", index, board->uart_dev_count);
         return NULL;
     }
 
-    if (!plat->no_bus_mux) {
-        int pos = plat->uart_dev[index].rx;
+    if (!board->no_bus_mux) {
+        int pos = board->uart_dev[index].rx;
         if (pos >= 0) {
-            if (plat->pins[pos].uart.mux_total > 0) {
-                if (mraa_setup_mux_mapped(plat->pins[pos].uart) != MRAA_SUCCESS) {
+            if (board->pins[pos].uart.mux_total > 0) {
+                if (mraa_setup_mux_mapped(board->pins[pos].uart) != MRAA_SUCCESS) {
                     syslog(LOG_ERR, "uart%i: init: failed to setup muxes for RX pin", index);
                     return NULL;
                 }
             }
         }
 
-        pos = plat->uart_dev[index].tx;
+        pos = board->uart_dev[index].tx;
         if (pos >= 0) {
-            if (plat->pins[pos].uart.mux_total > 0) {
-                if (mraa_setup_mux_mapped(plat->pins[pos].uart) != MRAA_SUCCESS) {
+            if (board->pins[pos].uart.mux_total > 0) {
+                if (mraa_setup_mux_mapped(board->pins[pos].uart) != MRAA_SUCCESS) {
                     syslog(LOG_ERR, "uart%i: init: failed to setup muxes for TX pin", index);
                     return NULL;
                 }
@@ -214,10 +219,25 @@ mraa_uart_init(int index)
         }
     }
 
-    mraa_uart_context dev = mraa_uart_init_raw((char*)plat->uart_dev[index].device_path);
+    mraa_uart_context dev = calloc(1, sizeof(struct _uart));
+
     if (dev == NULL) {
         return NULL;
     }
+
+    if (board->adv_func != NULL && board->adv_func->uart_init_internal_replace != NULL)
+    {
+        dev->advance_func = board->adv_func;
+        if (dev->advance_func->uart_init_internal_replace(dev, index) == MRAA_SUCCESS)
+        {
+            return dev;
+        }
+        free(dev);
+        return NULL;
+    }
+
+    dev = mraa_uart_init_raw((char*)board->uart_dev[index].device_path);
+
     dev->index = index; //Set the board Index.
 
     if (IS_FUNC_DEFINED(dev, uart_init_post)) {

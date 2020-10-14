@@ -65,11 +65,22 @@
 #define FIRMATA_SYSEX_NON_REALTIME 0x7E // MIDI Reserved for non-realtime messages
 #define FIRMATA_SYSEX_REALTIME 0x7F     // MIDI Reserved for realtime messages
 
+// Serial command bytes
+#define FIRMATA_SERIAL_DATA                 0x60 // communicate with serial devices, including other boards
+#define FIRMATA_SERIAL_CONFIG               0x10
+#define FIRMATA_SERIAL_WRITE                0x20
+#define FIRMATA_SERIAL_READ                 0x30
+#define FIRMATA_SERIAL_REPLY                0x40
+#define FIRMATA_SERIAL_CLOSE                0x50
+#define FIRMATA_SERIAL_FLUSH                0x60
+#define FIRMATA_SERIAL_LISTEN               0x70
+
 #define FIRMATA_MSG_LEN 1024
 
 #define TOTAL_ANALOG_PINS       6
 #define TOTAL_GPIO_PINS         14
 #define TOTAL_I2C_BUS           2
+#define TOTAL_UART_DEV          3
 #define TOTAL_PINS              25 // 14 digital + 6 analog + 2 i2c + 3 spi
 
 typedef struct s_pin {

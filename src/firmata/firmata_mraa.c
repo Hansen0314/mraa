@@ -520,7 +520,49 @@ mraa_firmata_pwm_period_replace(mraa_pwm_context dev, int period)
 
     return MRAA_ERROR_FEATURE_NOT_IMPLEMENTED;
 }
+static mraa_result_t
+mraa_firmata_uart_init_internal_replace(mraa_uart_context dev,int index)
+{
+    dev->index = index;
+    int baud = 115200; // this should be either 1 or 0, I don't know :)
+    char buff[7];
+    buff[0] = FIRMATA_START_SYSEX;
+    buff[1] = FIRMATA_SERIAL_DATA;
+    buff[2] = FIRMATA_SERIAL_CONFIG | index;
+    buff[3] = baud & 0x7F;
+    buff[4] = (baud >> 7) & 0x7F;
+    buff[5] = (baud >> 14) & 0x7F;
+    buff[6] = FIRMATA_END_SYSEX;
+    mraa_uart_write(firmata_dev->uart, buff, 7);    
+    return MRAA_SUCCESS;
+}
+static mraa_result_t
+mraa_firmata_uart_set_baudrate_replace(mraa_uart_context dev,unsigned int baud)
+{
+    char buff[7];
+    buff[0] = FIRMATA_START_SYSEX;
+    buff[1] = FIRMATA_SERIAL_DATA;
+    buff[2] = FIRMATA_SERIAL_CONFIG | dev->index;
+    buff[3] = baud & 0x7F;
+    buff[4] = (baud >> 7) & 0x7F;
+    buff[5] = (baud >> 14) & 0x7F;
+    buff[6] = FIRMATA_END_SYSEX;    
+    mraa_uart_write(firmata_dev->uart, buff, 7);   
+    return MRAA_SUCCESS;
+}
+int
+mraa_firmata_uart_write_replace(mraa_uart_context dev, const char* buf, size_t len)
+{
+    // to do
+    // char *buff = malloc(4 + len);
+    // buff[0] = FIRMATA_START_SYSEX;
+    // buff[1] = FIRMATA_SERIAL_DATA;
+    // buff[2] = FIRMATA_SERIAL_WRITE;
 
+    // buff[len + 3] = FIRMATA_END_SYSEX;
+    // mraa_uart_write(firmata_dev->uart, buff, len + 4); 
+    return MRAA_SUCCESS;
+}
 static void*
 mraa_firmata_pull_handler(void* vp)
 {
@@ -584,6 +626,9 @@ mraa_firmata_plat_init(const char* uart_dev)
 
     b->phy_pin_count = TOTAL_ANALOG_PINS + TOTAL_GPIO_PINS;
     b->i2c_bus_count = TOTAL_I2C_BUS;
+    b->uart_dev_count = TOTAL_UART_DEV;
+    b->def_uart_dev = 0;
+    b->no_bus_mux = 1;
     b->def_i2c_bus = 0;
     b->i2c_bus[0].bus_id = 0;
     b->pwm_min_period = 2048;
@@ -702,6 +747,10 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->i2c_write_byte_data_replace = &mraa_firmata_i2c_write_byte_data;
     b->adv_func->i2c_write_word_data_replace = &mraa_firmata_i2c_write_word_data;
     b->adv_func->i2c_stop_replace = &mraa_firmata_i2c_stop;
+
+    b->adv_func->uart_init_internal_replace = &mraa_firmata_uart_init_internal_replace;
+    b->adv_func->uart_set_baudrate_replace =&mraa_firmata_uart_set_baudrate_replace;
+    b->adv_func->uart_write_replace =&mraa_firmata_uart_write_replace;
     return b;
 }
 
