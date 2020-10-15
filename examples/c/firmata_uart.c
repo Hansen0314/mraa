@@ -43,7 +43,7 @@ main(int argc, char** argv)
 
     /* initialize mraa for the platform (not needed most of the times) */
     mraa_init();
-    mraa_add_subplatform(MRAA_GENERIC_FIRMATA, "/dev/ttyACM0");
+    mraa_add_subplatform(MRAA_GENERIC_FIRMATA, "/dev/ttyACM3");
 
     //! [Interesting]
     /* initialize UART */
@@ -52,7 +52,7 @@ main(int argc, char** argv)
         fprintf(stderr, "Failed to initialize UART\n");
         goto err_exit;
     }
-
+    while(mraa_uart_read(uart,buffer,sizeof(buffer)) == -1);
     while (flag) {
         /* send data through UART */
         mraa_uart_write(uart, buffer, sizeof(buffer));

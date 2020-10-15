@@ -74,7 +74,7 @@
 #define FIRMATA_SERIAL_CLOSE                0x50
 #define FIRMATA_SERIAL_FLUSH                0x60
 #define FIRMATA_SERIAL_LISTEN               0x70
-
+#define FIRMATA_DEFAULT_BAUD                115200
 #define FIRMATA_MSG_LEN 1024
 
 #define TOTAL_ANALOG_PINS       6
@@ -94,6 +94,7 @@ typedef struct s_firmata {
     mraa_uart_context uart;
     t_pin pins[128];
     int i2cmsg[256][256];
+    int uartmsg[256][256];
     int parse_command_len;
     int parse_count;
     uint8_t parse_buff[FIRMATA_MSG_LEN];

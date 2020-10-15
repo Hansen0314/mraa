@@ -524,7 +524,7 @@ static mraa_result_t
 mraa_firmata_uart_init_internal_replace(mraa_uart_context dev,int index)
 {
     dev->index = index;
-    int baud = 115200; // this should be either 1 or 0, I don't know :)
+    int baud = FIRMATA_DEFAULT_BAUD; // this should be either 1 or 0, I don't know :)
     char buff[7];
     buff[0] = FIRMATA_START_SYSEX;
     buff[1] = FIRMATA_SERIAL_DATA;
@@ -550,6 +550,7 @@ mraa_firmata_uart_set_baudrate_replace(mraa_uart_context dev,unsigned int baud)
     mraa_uart_write(firmata_dev->uart, buff, 7);   
     return MRAA_SUCCESS;
 }
+// return buffer_size: Number of data to be sent
 int
 mraa_firmata_uart_write_replace(mraa_uart_context dev, const char* buf, size_t len)
 {
@@ -572,8 +573,79 @@ mraa_firmata_uart_write_replace(mraa_uart_context dev, const char* buf, size_t l
     buffer[buffer_size-1] = FIRMATA_END_SYSEX;
     mraa_uart_write(firmata_dev->uart, buffer, buffer_size); 
     free(buffer);
+    return buffer_size;
+}
+static mraa_result_t
+mraa_firmata_uart_wait(int index)
+{
+    int i = 0;
+    if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    int res = firmata_dev->uartmsg[index][0];
+    if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    for (; res == -1; i++) {
+        if (i > 1000) {
+            return MRAA_ERROR_UNSPECIFIED;
+        }
+        usleep(50);
+        if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+        res = firmata_dev->uartmsg[index][0];
+        if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    }
     return MRAA_SUCCESS;
 }
+
+static mraa_result_t
+mraa_firmata_send_uart_read_reg_req(mraa_uart_context dev, uint8_t command, int length)
+{
+    char* buffer = calloc(7, sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SERIAL_DATA;
+    buffer[2] = FIRMATA_SERIAL_READ | dev->index;
+    buffer[3] = command & 0X01;
+    // number of bytes
+    buffer[4] = length & 0x7f;
+    buffer[5] = (length >> 7) & 0x7f;
+    buffer[6] = FIRMATA_END_SYSEX;
+
+    if (mraa_uart_write(firmata_dev->uart, buffer, 7) != 7) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
+
+    // this needs a lock :)
+    if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    memset(&firmata_dev->uartmsg[dev->index][0], -1, sizeof(int)*length);
+    if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    
+
+    free(buffer);
+    return MRAA_SUCCESS;    
+}
+int
+mraa_firmata_uart_read_replace(mraa_uart_context dev, char* buf, size_t len)
+{
+    uint32_t *local_storage = (uint32_t*) calloc(len, sizeof(int));
+    if (mraa_firmata_send_uart_read_reg_req(dev, 0, len) == MRAA_SUCCESS) {
+        mraa_result_t uart_wait_status = mraa_firmata_uart_wait(dev->index);
+        if (uart_wait_status == MRAA_SUCCESS) {
+            if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+            memcpy(local_storage, &firmata_dev->uartmsg[dev->index][0], sizeof(int)*len);
+            if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+            int x = 0;
+            for(; x<len; x++){
+                buf[x] = (uint8_t) local_storage[x];
+            }
+            free(local_storage);
+            return len;
+        }
+    }
+    
+    return -1;
+}
+
 static void*
 mraa_firmata_pull_handler(void* vp)
 {
@@ -762,6 +834,7 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->uart_init_internal_replace = &mraa_firmata_uart_init_internal_replace;
     b->adv_func->uart_set_baudrate_replace =&mraa_firmata_uart_set_baudrate_replace;
     b->adv_func->uart_write_replace =&mraa_firmata_uart_write_replace;
+    b->adv_func->uart_read_replace =&mraa_firmata_uart_read_replace;
     return b;
 }
 
