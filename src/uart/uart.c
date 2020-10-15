@@ -343,6 +343,10 @@ mraa_uart_stop(mraa_uart_context dev)
         return MRAA_ERROR_INVALID_HANDLE;
     }
 
+    if (IS_FUNC_DEFINED(dev, uart_close_internal_replace)) {
+        return dev->advance_func->uart_close_internal_replace(dev);
+    }
+
     // just close the device and reset our fd.
     if (dev->fd >= 0) {
         close(dev->fd);

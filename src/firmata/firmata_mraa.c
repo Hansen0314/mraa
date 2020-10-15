@@ -670,6 +670,34 @@ mraa_firmata_uart_flush_replace(mraa_uart_context dev)
     return MRAA_SUCCESS;
 }
 
+mraa_result_t
+mraa_firmata_uart_close_internal_replace(mraa_uart_context dev)
+{
+
+    for (int i = 0; i < 8; i++){
+        mraa_firmata_send_uart_read_reg_req(dev,1,0);
+    }
+    // char* buffer = calloc(4, sizeof(char));
+    // if (buffer == NULL) {
+    //     return MRAA_ERROR_NO_RESOURCES;
+    // }
+    
+    // buffer[0] = FIRMATA_START_SYSEX;
+    // buffer[1] = FIRMATA_SERIAL_DATA;
+    // buffer[2] = FIRMATA_SERIAL_CLOSE | dev->index;    
+    // buffer[3] = FIRMATA_END_SYSEX;
+
+    // if (mraa_uart_write(firmata_dev->uart, buffer, 4) != 4) {
+    //     free(buffer);
+    //     return MRAA_ERROR_UNSPECIFIED;
+    // }
+
+    // fprintf(stdout,"mraa_firmata_uart_close_internal_replace \r\n");
+    // free(buffer);    
+    free(dev);
+    return MRAA_SUCCESS;
+}
+
 static void*
 mraa_firmata_pull_handler(void* vp)
 {
@@ -861,6 +889,7 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->uart_write_replace = &mraa_firmata_uart_write_replace;
     b->adv_func->uart_read_replace = &mraa_firmata_uart_read_replace;
     b->adv_func->uart_flush_replace = &mraa_firmata_uart_flush_replace;
+    b->adv_func->uart_close_internal_replace = &mraa_firmata_uart_close_internal_replace;
     return b;
 }
 

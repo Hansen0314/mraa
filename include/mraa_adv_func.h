@@ -97,6 +97,7 @@ typedef struct {
     mraa_result_t (*uart_init_post) (mraa_uart_context uart);
     mraa_result_t (*uart_init_raw_replace) (mraa_uart_context dev, const char* path);
     mraa_result_t (*uart_init_internal_replace) (mraa_uart_context dev, int index);
+    mraa_result_t (*uart_close_internal_replace) (mraa_uart_context dev);
     mraa_result_t (*uart_flush_replace) (mraa_uart_context dev);
     mraa_result_t (*uart_sendbreak_replace) (mraa_uart_context dev, int duration);
     mraa_result_t (*uart_set_baudrate_replace) (mraa_uart_context dev, unsigned int baud);

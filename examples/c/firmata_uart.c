@@ -59,7 +59,6 @@ main(int argc, char** argv)
         mraa_uart_write(uart, buffer, sizeof(buffer));
         sleep(1);
     }
-
     /* stop UART */
     mraa_uart_stop(uart);
 
