@@ -36,7 +36,7 @@ int
 main(int argc, char** argv)
 {
     mraa_uart_context uart;
-    char buffer[] = "Hello Mraa!";
+    char buffer[] = "Hello firmata!";
 
     /* install signal handler */
     signal(SIGINT, sig_handler);

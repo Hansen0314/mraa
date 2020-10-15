@@ -263,7 +263,7 @@ mraa_firmata_i2c_write(mraa_i2c_context dev, const uint8_t* data, int bytesToWri
 {
     // buffer needs 5 bytes for firmata, and 2 bytes for every byte of data
     int buffer_size = (bytesToWrite*2) + 5;
-    char* buffer = calloc(buffer_size , 2 * sizeof(char));
+    char* buffer = calloc(buffer_size , sizeof(char));
     if (buffer == NULL) {
         return MRAA_ERROR_NO_RESOURCES;
     }
@@ -274,7 +274,7 @@ mraa_firmata_i2c_write(mraa_i2c_context dev, const uint8_t* data, int bytesToWri
     buffer[2] = dev->addr;
     buffer[3] = I2C_MODE_WRITE << 3;
     // we need to write until FIRMATA_END_SYSEX
-    for (; i < (buffer_size-1); i++) {
+    for (; i < (bytesToWrite-1); i++) {
         buffer[ii] = data[i] & 0x7F;
         buffer[ii+1] = (data[i] >> 7) & 0x7f;
         ii = ii+2;
@@ -553,14 +553,25 @@ mraa_firmata_uart_set_baudrate_replace(mraa_uart_context dev,unsigned int baud)
 int
 mraa_firmata_uart_write_replace(mraa_uart_context dev, const char* buf, size_t len)
 {
-    // to do
-    // char *buff = malloc(4 + len);
-    // buff[0] = FIRMATA_START_SYSEX;
-    // buff[1] = FIRMATA_SERIAL_DATA;
-    // buff[2] = FIRMATA_SERIAL_WRITE;
-
-    // buff[len + 3] = FIRMATA_END_SYSEX;
-    // mraa_uart_write(firmata_dev->uart, buff, len + 4); 
+    int buffer_size = (len*2) + 4;
+    char* buffer = calloc(buffer_size , sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
+    int i = 0;
+    int ii = 3;
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SERIAL_DATA;
+    buffer[2] = FIRMATA_SERIAL_WRITE | dev->index;
+    // we need to write until FIRMATA_END_SYSEX
+    for (; i < len; i++) {
+        buffer[ii] = buf[i] & 0x7F;
+        buffer[ii+1] = (buf[i] >> 7) & 0x7f;
+        ii = ii+2;
+    }
+    buffer[buffer_size-1] = FIRMATA_END_SYSEX;
+    mraa_uart_write(firmata_dev->uart, buffer, buffer_size); 
+    free(buffer);
     return MRAA_SUCCESS;
 }
 static void*
