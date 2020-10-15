@@ -645,6 +645,30 @@ mraa_firmata_uart_read_replace(mraa_uart_context dev, char* buf, size_t len)
     
     return -1;
 }
+// Flush the serial port. 
+// The exact behavior of flush depends on the underlying platform. 
+// For example, with Arduino, calling flush on a HW serial port will drain the TX output buffer, 
+// calling flush on a SW serial port will reset the RX buffer to the beginning, 
+// abandoning any data in the buffer. 
+mraa_result_t 
+mraa_firmata_uart_flush_replace(mraa_uart_context dev)
+{
+    char* buffer = calloc(4, sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
+
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SERIAL_DATA;
+    buffer[2] = FIRMATA_SERIAL_FLUSH | dev->index;    
+    buffer[3] = FIRMATA_END_SYSEX;
+    if (mraa_uart_write(firmata_dev->uart, buffer, 4) != 4) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
+    free(buffer);
+    return MRAA_SUCCESS;
+}
 
 static void*
 mraa_firmata_pull_handler(void* vp)
@@ -666,6 +690,7 @@ mraa_firmata_pull_handler(void* vp)
 
     return NULL;
 }
+
 
 mraa_board_t*
 mraa_firmata_plat_init(const char* uart_dev)
@@ -832,9 +857,10 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->i2c_stop_replace = &mraa_firmata_i2c_stop;
 
     b->adv_func->uart_init_internal_replace = &mraa_firmata_uart_init_internal_replace;
-    b->adv_func->uart_set_baudrate_replace =&mraa_firmata_uart_set_baudrate_replace;
-    b->adv_func->uart_write_replace =&mraa_firmata_uart_write_replace;
-    b->adv_func->uart_read_replace =&mraa_firmata_uart_read_replace;
+    b->adv_func->uart_set_baudrate_replace = &mraa_firmata_uart_set_baudrate_replace;
+    b->adv_func->uart_write_replace = &mraa_firmata_uart_write_replace;
+    b->adv_func->uart_read_replace = &mraa_firmata_uart_read_replace;
+    b->adv_func->uart_flush_replace = &mraa_firmata_uart_flush_replace;
     return b;
 }
 
