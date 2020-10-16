@@ -177,7 +177,7 @@ firmata_endParse(t_firmata* firmata)
             buf[len++] = FIRMATA_END_SYSEX;
             for (i = 0; i < 16; i++) {
                 buf[len++] = 0xC0 | i; // report analog
-                buf[len++] = 1;
+                buf[len++] = 0;
                 buf[len++] = 0xD0 | i; // report digital
                 buf[len++] = 1;
             }

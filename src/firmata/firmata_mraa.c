@@ -274,7 +274,7 @@ mraa_firmata_i2c_write(mraa_i2c_context dev, const uint8_t* data, int bytesToWri
     buffer[2] = dev->addr;
     buffer[3] = I2C_MODE_WRITE << 3;
     // we need to write until FIRMATA_END_SYSEX
-    for (; i < (bytesToWrite-1); i++) {
+    for (; i < bytesToWrite; i++) {
         buffer[ii] = data[i] & 0x7F;
         buffer[ii+1] = (data[i] >> 7) & 0x7f;
         ii = ii+2;
