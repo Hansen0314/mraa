@@ -698,6 +698,128 @@ mraa_firmata_uart_close_internal_replace(mraa_uart_context dev)
     return MRAA_SUCCESS;
 }
 
+mraa_result_t 
+mraa_firmata_spi_device_config(mraa_spi_context dev , int csPin)
+{
+    int len = 14;
+    int channel = 0;
+    if (csPin == -1)
+    {
+        len = len - 2;
+    }
+    char* buffer = calloc(len, sizeof(char));    
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SPI_DATA;
+    buffer[2] = FIRMATA_SPI_BEGIN_TRANSACTION;
+    buffer[3] = (dev->devfd << 2) | channel;
+    buffer[4] = (dev->mode << 1) | dev->lsb;
+    buffer[5] = dev->clock & 0x7f;
+    buffer[6] = (dev->clock >> 7) & 0x7f;
+    buffer[7] = (dev->clock >> 14) & 0x7f;
+    buffer[8] = (dev->clock >> 21) & 0x7f;
+    buffer[9] = (dev->clock >> 28) & 0x7f;
+    buffer[10] = dev->bpw;
+    //  set default active status of cs pin mode to low 
+    if (csPin != -1)
+    {
+        buffer[11] = csPin;
+        buffer[12] = 0;
+    }
+    buffer[len - 1] = FIRMATA_END_SYSEX;
+    if (mraa_uart_write(firmata_dev->uart, buffer, len) != len) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
+    free(buffer);    
+    return MRAA_SUCCESS;
+}
+mraa_result_t 
+mraa_firmata_spi_mode_replace(mraa_spi_context dev, mraa_spi_mode_t mode)
+{
+    if(dev->mode == mode)
+        return MRAA_SUCCESS;
+    dev->mode = mode;
+    mraa_firmata_spi_device_config(dev,-1);
+    return MRAA_SUCCESS;
+}
+mraa_result_t 
+mraa_firmata_spi_frequency_replace(mraa_spi_context dev, int hz)
+{
+    if(dev->clock == hz)
+        return MRAA_SUCCESS;
+    dev->clock = hz;
+    mraa_firmata_spi_device_config(dev,-1);
+    return MRAA_SUCCESS;    
+}
+mraa_result_t 
+mraa_firmata_spi_lsbmode_replace(mraa_spi_context dev, mraa_boolean_t lsb)
+{
+    if(dev->lsb == lsb)
+        return MRAA_SUCCESS;
+    dev->lsb = lsb;
+    mraa_firmata_spi_device_config(dev,-1);
+    return MRAA_SUCCESS;    
+}
+mraa_result_t
+mraa_firmata_spi_init_internal_replace(mraa_spi_context dev, int bus)
+{
+    dev->devfd = bus;
+    dev->bpw = 8;
+    // dev->clock = 4000000;
+    // dev->lsb = 0;
+    // dev->mode = MRAA_SPI_MODE0;
+    char* buffer = calloc(5, sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
+
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SPI_DATA;
+    buffer[2] = FIRMATA_SPI_BEGIN;
+    buffer[3] = bus;
+    buffer[4] = FIRMATA_END_SYSEX;
+    if (mraa_uart_write(firmata_dev->uart, buffer, 5) != 5) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
+    free(buffer);
+    mraa_firmata_spi_mode_replace(dev,MRAA_SPI_MODE0);
+    mraa_firmata_spi_frequency_replace(dev,4000000);
+    mraa_firmata_spi_lsbmode_replace(dev,0);
+    return MRAA_SUCCESS;    
+}   
+
+mraa_result_t
+mraa_firmata_spi_transfer_buf_replace(mraa_spi_context dev, uint8_t* data, uint8_t* rxbuf, int length)
+{
+    int len = 7 + length;
+    char* buffer = calloc(len, sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SPI_DATA;
+    buffer[2] = FIRMATA_SPI_TRANSFER;
+    buffer[3] = (dev->devfd << 2) & 0XFC;
+    buffer[4] = 1;
+    buffer[5] = length;
+    int ii = 6;
+    int i = 0;
+    // we need to write until FIRMATA_END_SYSEX
+    for (; i < length; i++) {
+        buffer[ii] = data[i] & 0x7F;
+        buffer[ii+1] = (data[i] >> 7) & 0x7f;
+        ii = ii+2;
+    }    
+    buffer[len - 1] = FIRMATA_END_SYSEX;
+    if (mraa_uart_write(firmata_dev->uart, buffer, len) != len) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
+    free(buffer);    
+
+
+}
 static void*
 mraa_firmata_pull_handler(void* vp)
 {
@@ -767,6 +889,10 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->no_bus_mux = 1;
     b->def_i2c_bus = 0;
     b->i2c_bus[0].bus_id = 0;
+    b->spi_bus_count = 1;
+    b->def_spi_bus = 0;
+    b->spi_bus[0].bus_id = 0;
+    b->spi_bus[0].slave_s = 0;
     b->pwm_min_period = 2048;
     b->pwm_max_period = 2048;
     
@@ -890,6 +1016,13 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->uart_read_replace = &mraa_firmata_uart_read_replace;
     b->adv_func->uart_flush_replace = &mraa_firmata_uart_flush_replace;
     b->adv_func->uart_close_internal_replace = &mraa_firmata_uart_close_internal_replace;
+    
+    b->adv_func->spi_init_internal_replace = &mraa_firmata_spi_init_internal_replace;
+    b->adv_func->spi_mode_replace = &mraa_firmata_spi_mode_replace;
+    b->adv_func->spi_frequency_replace = &mraa_firmata_spi_frequency_replace;
+    b->adv_func->spi_lsbmode_replace = &mraa_firmata_spi_lsbmode_replace;
+    b->adv_func->spi_transfer_buf_replace = &mraa_firmata_spi_transfer_buf_replace;
+    // b->adv_func->spi_write_replace = &mraa_firmata_spi_write_replace;
     return b;
 }
 

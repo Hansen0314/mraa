@@ -47,68 +47,92 @@ mraa_spi_init_internal(mraa_adv_func_t* func_table)
 mraa_spi_context
 mraa_spi_init(int bus)
 {
-    if (plat == NULL) {
+    mraa_board_t* board = plat;
+    if (board == NULL) {
         syslog(LOG_ERR, "spi: Platform Not Initialised");
         return NULL;
     }
     if (mraa_is_sub_platform_id(bus)) {
-        syslog(LOG_ERR, "spi: Spi module doesn't support subplatforms");
-        return NULL;
+        syslog(LOG_NOTICE, "uart: Using sub platform");
+        board = board->sub_platform;
+        if (board == NULL) {
+            syslog(LOG_ERR, "uart: Sub platform Not Initialised");
+            return NULL;
+        }
+        bus = mraa_get_sub_platform_id(bus);
     }
-    if (plat->spi_bus_count == 0) {
+    if (board->spi_bus_count == 0) {
         syslog(LOG_ERR, "spi: no spi buses defined in platform");
         return NULL;
     }
-    if (plat->spi_bus_count == 1) {
-        bus = plat->def_spi_bus;
+    if (board->spi_bus_count == 1) {
+        bus = board->def_spi_bus;
     }
-    if (bus >= plat->spi_bus_count) {
+    if (bus >= board->spi_bus_count) {
         syslog(LOG_ERR, "spi: requested bus above spi bus count");
         return NULL;
     }
-    if (plat->adv_func != NULL && plat->adv_func->spi_init_pre != NULL) {
-        if (plat->adv_func->spi_init_pre(bus) != MRAA_SUCCESS) {
+    if (board->adv_func != NULL && board->adv_func->spi_init_pre != NULL) {
+        if (board->adv_func->spi_init_pre(bus) != MRAA_SUCCESS) {
             return NULL;
         }
     }
 
-    if (!plat->no_bus_mux) {
-        int pos = plat->spi_bus[bus].sclk;
-        if (pos >= 0 && plat->pins[pos].spi.mux_total > 0) {
-            if (mraa_setup_mux_mapped(plat->pins[pos].spi) != MRAA_SUCCESS) {
+    if (!board->no_bus_mux) {
+        int pos = board->spi_bus[bus].sclk;
+        if (pos >= 0 && board->pins[pos].spi.mux_total > 0) {
+            if (mraa_setup_mux_mapped(board->pins[pos].spi) != MRAA_SUCCESS) {
                 syslog(LOG_ERR, "spi: failed to set-up spi sclk multiplexer");
                 return NULL;
             }
         }
 
-        pos = plat->spi_bus[bus].mosi;
-        if (pos >= 0 && plat->pins[pos].spi.mux_total > 0) {
-            if (mraa_setup_mux_mapped(plat->pins[pos].spi) != MRAA_SUCCESS) {
+        pos = board->spi_bus[bus].mosi;
+        if (pos >= 0 && board->pins[pos].spi.mux_total > 0) {
+            if (mraa_setup_mux_mapped(board->pins[pos].spi) != MRAA_SUCCESS) {
                 syslog(LOG_ERR, "spi: failed to set-up spi mosi multiplexer");
                 return NULL;
             }
         }
 
-        pos = plat->spi_bus[bus].miso;
-        if (pos >= 0 && plat->pins[pos].spi.mux_total > 0) {
-            if (mraa_setup_mux_mapped(plat->pins[pos].spi) != MRAA_SUCCESS) {
+        pos = board->spi_bus[bus].miso;
+        if (pos >= 0 && board->pins[pos].spi.mux_total > 0) {
+            if (mraa_setup_mux_mapped(board->pins[pos].spi) != MRAA_SUCCESS) {
                 syslog(LOG_ERR, "spi: failed to set-up spi miso multiplexer");
                 return NULL;
             }
         }
 
-        pos = plat->spi_bus[bus].cs;
-        if (pos >= 0 && plat->pins[pos].spi.mux_total > 0) {
-            if (mraa_setup_mux_mapped(plat->pins[pos].spi) != MRAA_SUCCESS) {
+        pos = board->spi_bus[bus].cs;
+        if (pos >= 0 && board->pins[pos].spi.mux_total > 0) {
+            if (mraa_setup_mux_mapped(board->pins[pos].spi) != MRAA_SUCCESS) {
                 syslog(LOG_ERR, "spi: failed to set-up spi cs multiplexer");
                 return NULL;
             }
         }
     }
-    mraa_spi_context dev = mraa_spi_init_raw(plat->spi_bus[bus].bus_id, plat->spi_bus[bus].slave_s);
 
-    if (plat->adv_func != NULL && plat->adv_func->spi_init_post != NULL) {
-        mraa_result_t ret = plat->adv_func->spi_init_post(dev);
+    mraa_spi_context dev = calloc(1, sizeof(struct _spi));
+
+    if (dev == NULL) {
+        return NULL;
+    }
+
+    if (board->adv_func != NULL && board->adv_func->spi_init_internal_replace != NULL)
+    {
+        dev->advance_func = board->adv_func;
+        if (dev->advance_func->spi_init_internal_replace(dev, bus) == MRAA_SUCCESS)
+        {
+            return dev;
+        }
+        free(dev);
+        return NULL;
+    }
+
+    dev = mraa_spi_init_raw(board->spi_bus[bus].bus_id, board->spi_bus[bus].slave_s);
+
+    if (board->adv_func != NULL && board->adv_func->spi_init_post != NULL) {
+        mraa_result_t ret = board->adv_func->spi_init_post(dev);
         if (ret != MRAA_SUCCESS) {
             free(dev);
             return NULL;

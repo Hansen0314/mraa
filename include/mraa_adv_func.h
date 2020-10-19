@@ -83,6 +83,7 @@ typedef struct {
     mraa_result_t (*spi_init_pre) (int bus);
     mraa_result_t (*spi_init_post) (mraa_spi_context spi);
     mraa_result_t (*spi_init_raw_replace) (mraa_spi_context spi, unsigned int bus, unsigned int cs);
+    mraa_result_t (*spi_init_internal_replace) (mraa_spi_context dev, int bus);
     mraa_result_t (*spi_lsbmode_replace) (mraa_spi_context dev, mraa_boolean_t lsb);
     mraa_result_t (*spi_mode_replace) (mraa_spi_context dev, mraa_spi_mode_t mode);
     mraa_result_t (*spi_bit_per_word_replace) (mraa_spi_context dev, unsigned int bits);

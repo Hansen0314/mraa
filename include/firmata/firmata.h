@@ -77,6 +77,17 @@
 #define FIRMATA_DEFAULT_BAUD                115200
 #define FIRMATA_MSG_LEN 1024
 
+// SPI mode bytes
+#define FIRMATA_SPI_DATA                    0x68 // communicate with serial devices, including other board
+#define FIRMATA_SPI_BEGIN                   0x00
+#define FIRMATA_SPI_BEGIN_TRANSACTION       0x01
+#define FIRMATA_SPI_END_TRANSACTION         0x02
+#define FIRMATA_SPI_TRANSFER                0x03
+#define FIRMATA_SPI_WRITE                   0x04
+#define FIRMATA_SPI_READ                    0x05
+#define FIRMATA_SPI_REPLY                   0x06
+#define FIRMATA_SPI_END                     0x07
+
 #define TOTAL_ANALOG_PINS       6
 #define TOTAL_GPIO_PINS         14
 #define TOTAL_I2C_BUS           2
