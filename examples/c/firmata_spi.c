@@ -36,8 +36,8 @@ main(int argc, char** argv)
 
     //! [Interesting]
     /* initialize SPI bus */
-    if (spi == NULL) {
     spi = mraa_spi_init(SPI_BUS);
+    if (spi == NULL) {
         fprintf(stderr, "Failed to initialize SPI\n");
         mraa_deinit();
         return EXIT_FAILURE;
@@ -58,9 +58,9 @@ main(int argc, char** argv)
     mraa_spi_transfer_buf(spi,tx_data,rx_data,2);
     if(rx_data[0]==0x01&&rx_data[1]==0x02)
     {
-        printf(stdout,"spi firmata feature");
+        fprintf(stdout,"spi firmata feature\r\n");
     }
-
+    
     /* stop spi */
     mraa_spi_stop(spi);
 

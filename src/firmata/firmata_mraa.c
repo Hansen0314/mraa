@@ -697,8 +697,25 @@ mraa_firmata_uart_close_internal_replace(mraa_uart_context dev)
     free(dev);
     return MRAA_SUCCESS;
 }
-
-mraa_result_t 
+static mraa_result_t
+mraa_firmata_spi_wait(mraa_spi_context dev)
+{
+    int i = 0;
+    if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    int res = firmata_dev->spimsg[dev->devfd][0];
+    if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    for (; res == -1; i++) {
+        if (i > 1000) {
+            return MRAA_ERROR_UNSPECIFIED;
+        }
+        usleep(50);
+        if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+        res = firmata_dev->spimsg[dev->devfd][0];
+        if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    }
+    return MRAA_SUCCESS;    
+}
+static mraa_result_t 
 mraa_firmata_spi_device_config(mraa_spi_context dev , int csPin)
 {
     int len = 14;
@@ -762,7 +779,7 @@ mraa_firmata_spi_lsbmode_replace(mraa_spi_context dev, mraa_boolean_t lsb)
 }
 mraa_result_t
 mraa_firmata_spi_init_internal_replace(mraa_spi_context dev, int bus)
-{
+{   
     dev->devfd = bus;
     dev->bpw = 8;
     // dev->clock = 4000000;
@@ -788,11 +805,29 @@ mraa_firmata_spi_init_internal_replace(mraa_spi_context dev, int bus)
     mraa_firmata_spi_lsbmode_replace(dev,0);
     return MRAA_SUCCESS;    
 }   
+int
+mraa_firmata_spi_wait_read(mraa_spi_context dev, uint8_t* buf, size_t len)
+{
+    uint32_t *local_storage = (uint32_t*) calloc(len, sizeof(int));
+    mraa_result_t uart_spi_status = mraa_firmata_spi_wait(dev);
+    if (uart_spi_status == MRAA_SUCCESS) {
+        if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+        memcpy(local_storage, &firmata_dev->spimsg[dev->devfd][0], sizeof(int)*len);
+        if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+        int x = 0;
+        for(; x<len; x++){
+            buf[x] = (uint8_t) local_storage[x];
+        }
+        free(local_storage);
+        return len;
+    }
+    return -1;
+}
 
 mraa_result_t
 mraa_firmata_spi_transfer_buf_replace(mraa_spi_context dev, uint8_t* data, uint8_t* rxbuf, int length)
 {
-    int len = 7 + length;
+    int len = 7 + length*2;
     char* buffer = calloc(len, sizeof(char));
     if (buffer == NULL) {
         return MRAA_ERROR_NO_RESOURCES;
@@ -817,9 +852,33 @@ mraa_firmata_spi_transfer_buf_replace(mraa_spi_context dev, uint8_t* data, uint8
         return MRAA_ERROR_UNSPECIFIED;
     }
     free(buffer);    
-
-
+    if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
+    memset(&firmata_dev->spimsg[dev->devfd][0], -1, sizeof(int)*length);
+    if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;    
+    mraa_firmata_spi_wait_read(dev,rxbuf,length);
+    return MRAA_SUCCESS;
 }
+mraa_result_t mraa_firmata_spi_stop_replace(mraa_spi_context dev)
+{
+    char* buffer = calloc(5, sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
+
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SPI_DATA;
+    buffer[2] = FIRMATA_SPI_END;
+    buffer[3] = dev->devfd;
+    buffer[4] = FIRMATA_END_SYSEX;
+    if (mraa_uart_write(firmata_dev->uart, buffer, 5) != 5) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
+    free(buffer);
+    free(dev);
+    return MRAA_SUCCESS;
+}
+
 static void*
 mraa_firmata_pull_handler(void* vp)
 {
@@ -837,7 +896,7 @@ mraa_firmata_pull_handler(void* vp)
         isr_prev = isr_now;
         usleep(100);
     }
-
+    
     return NULL;
 }
 
@@ -1022,7 +1081,7 @@ mraa_firmata_plat_init(const char* uart_dev)
     b->adv_func->spi_frequency_replace = &mraa_firmata_spi_frequency_replace;
     b->adv_func->spi_lsbmode_replace = &mraa_firmata_spi_lsbmode_replace;
     b->adv_func->spi_transfer_buf_replace = &mraa_firmata_spi_transfer_buf_replace;
-    // b->adv_func->spi_write_replace = &mraa_firmata_spi_write_replace;
+    b->adv_func->spi_stop_replace = &mraa_firmata_spi_stop_replace;
     return b;
 }
 

@@ -250,6 +250,19 @@ firmata_endParse(t_firmata* firmata)
                 i = i+2;
             }
             if (pthread_spin_unlock(&firmata->lock) != 0) syslog(LOG_ERR, "firmata: Fatal spinlock deadlock");
+        }else if ((firmata->parse_buff[1] == FIRMATA_SPI_DATA) && (firmata->parse_buff[2] == FIRMATA_SPI_REPLY)){
+            int bus = (firmata->parse_buff[3] >> 2);
+            int len = firmata->parse_buff[4];
+            int i = 5;
+            int ii = 0;
+            // fprintf(stdout,"parse in spimsg\r\n");
+            if (pthread_spin_lock(&firmata->lock) != 0) syslog(LOG_ERR, "firmata: Fatal spinlock deadlock, skipping uart msg");
+            for (; ii < len; ii++) {
+                firmata->spimsg[bus][ii] = (firmata->parse_buff[i] & 0x7f) | ((firmata->parse_buff[i+1] & 0x7f) << 7);
+                // fprintf(stdout,"firmata->spimsg[bus][ii] is %d\r\n",firmata->spimsg[bus][ii]);
+                i = i+2;
+            }
+            if (pthread_spin_unlock(&firmata->lock) != 0) syslog(LOG_ERR, "firmata: Fatal spinlock deadlock");        
         } else if (firmata->parse_buff[1] == FIRMATA_EXTENDED_ANALOG && firmata->parse_count == 6) {
             int analog_ch = firmata->parse_buff[2];
             firmata->parse_buff[5] = firmata->parse_buff[5] & 0X01;
