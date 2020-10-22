@@ -53,6 +53,7 @@ main(int argc, char** argv)
         goto err_exit;
     }
     mraa_uart_flush(uart);
+    mraa_uart_write(uart, buffer, sizeof(buffer));
     while(mraa_uart_read(uart,buffer,sizeof(buffer)) == -1);
     while (flag) {
         /* send data through UART */

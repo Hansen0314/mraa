@@ -619,7 +619,7 @@ mraa_firmata_send_uart_read_reg_req(mraa_uart_context dev, uint8_t command, int 
     if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
     memset(&firmata_dev->uartmsg[dev->index][0], -1, sizeof(int)*length);
     if (pthread_spin_unlock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
-    
+
 
     free(buffer);
     return MRAA_SUCCESS;    
@@ -729,7 +729,9 @@ mraa_firmata_spi_device_config(mraa_spi_context dev , int csPin)
     buffer[1] = FIRMATA_SPI_DATA;
     buffer[2] = FIRMATA_SPI_BEGIN_TRANSACTION;
     buffer[3] = (dev->devfd << 2) | channel;
-    buffer[4] = (dev->mode << 1) | dev->lsb;
+    int lsb;
+    lsb = ((dev->lsb == 0) ? 1 : 0); 
+    buffer[4] = (dev->mode << 1) | lsb;
     buffer[5] = dev->clock & 0x7f;
     buffer[6] = (dev->clock >> 7) & 0x7f;
     buffer[7] = (dev->clock >> 14) & 0x7f;
@@ -783,7 +785,7 @@ mraa_firmata_spi_init_internal_replace(mraa_spi_context dev, int bus)
     dev->devfd = bus;
     dev->bpw = 8;
     // dev->clock = 4000000;
-    // dev->lsb = 0;
+    dev->lsb = 0;
     // dev->mode = MRAA_SPI_MODE0;
     char* buffer = calloc(5, sizeof(char));
     if (buffer == NULL) {
@@ -800,6 +802,7 @@ mraa_firmata_spi_init_internal_replace(mraa_spi_context dev, int bus)
         return MRAA_ERROR_UNSPECIFIED;
     }
     free(buffer);
+    mraa_firmata_spi_device_config(dev,9);
     mraa_firmata_spi_mode_replace(dev,MRAA_SPI_MODE0);
     mraa_firmata_spi_frequency_replace(dev,4000000);
     mraa_firmata_spi_lsbmode_replace(dev,0);
@@ -836,7 +839,7 @@ mraa_firmata_spi_transfer_buf_replace(mraa_spi_context dev, uint8_t* data, uint8
     buffer[1] = FIRMATA_SPI_DATA;
     buffer[2] = FIRMATA_SPI_TRANSFER;
     buffer[3] = (dev->devfd << 2) & 0XFC;
-    buffer[4] = 1;
+    buffer[4] = 2;
     buffer[5] = length;
     int ii = 6;
     int i = 0;
@@ -896,7 +899,7 @@ mraa_firmata_pull_handler(void* vp)
         isr_prev = isr_now;
         usleep(100);
     }
-    
+
     return NULL;
 }
 
