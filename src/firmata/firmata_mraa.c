@@ -573,10 +573,10 @@ mraa_firmata_uart_write_replace(mraa_uart_context dev, const char* buf, size_t l
     buffer[buffer_size-1] = FIRMATA_END_SYSEX;
     mraa_uart_write(firmata_dev->uart, buffer, buffer_size); 
     free(buffer);
-    return buffer_size;
+    return len;
 }
 static mraa_result_t
-mraa_firmata_uart_wait(int index)
+  mraa_firmata_uart_wait(int index)
 {
     int i = 0;
     if (pthread_spin_lock(&firmata_dev->lock) != 0) return MRAA_ERROR_UNSPECIFIED;
@@ -677,23 +677,23 @@ mraa_firmata_uart_close_internal_replace(mraa_uart_context dev)
     for (int i = 0; i < 8; i++){
         mraa_firmata_send_uart_read_reg_req(dev,1,0);
     }
-    // char* buffer = calloc(4, sizeof(char));
-    // if (buffer == NULL) {
-    //     return MRAA_ERROR_NO_RESOURCES;
-    // }
+    char* buffer = calloc(4, sizeof(char));
+    if (buffer == NULL) {
+        return MRAA_ERROR_NO_RESOURCES;
+    }
     
-    // buffer[0] = FIRMATA_START_SYSEX;
-    // buffer[1] = FIRMATA_SERIAL_DATA;
-    // buffer[2] = FIRMATA_SERIAL_CLOSE | dev->index;    
-    // buffer[3] = FIRMATA_END_SYSEX;
+    buffer[0] = FIRMATA_START_SYSEX;
+    buffer[1] = FIRMATA_SERIAL_DATA;
+    buffer[2] = FIRMATA_SERIAL_CLOSE | dev->index;    
+    buffer[3] = FIRMATA_END_SYSEX;
 
-    // if (mraa_uart_write(firmata_dev->uart, buffer, 4) != 4) {
-    //     free(buffer);
-    //     return MRAA_ERROR_UNSPECIFIED;
-    // }
+    if (mraa_uart_write(firmata_dev->uart, buffer, 4) != 4) {
+        free(buffer);
+        return MRAA_ERROR_UNSPECIFIED;
+    }
 
-    // fprintf(stdout,"mraa_firmata_uart_close_internal_replace \r\n");
-    // free(buffer);    
+    fprintf(stdout,"mraa_firmata_uart_close_internal_replace \r\n");
+    free(buffer);    
     free(dev);
     return MRAA_SUCCESS;
 }
